@@ -11,27 +11,31 @@ die() {
 	exit 1
 }
 
+add_temperature() {
+	local file="$1" t="$2"
+
+	jq --arg 't' "$t" '.temperature = ($t|tonumber)' \
+	<"$file" \
+	| sponge -- "$file"
+}
+
+add_message() {
+	local file="$1" role="$2" content="$3"
+
+	jq \
+		--arg 'r' "$role" \
+		--arg 'c' "$content" \
+		'.messages += [{"role": $r, "content": $c}]' \
+	<"$file" \
+	| sponge -- "$file"
+}
+
 build_request() {
 	local file="$1" temperature="$2"
 
 	if [[ "$temperature" ]]; then
-		jq \
-			--arg 'temperature' "$temperature" \
-			'.temperature = ($temperature|tonumber)' \
-		<"$file" \
-		| sponge -- "$file"
+		add_temperature "$file" "$temperature"
 	fi
-
-	_add_message() {
-		local role="$1" content="$2"
-
-		jq \
-			--arg 'role' "$role" \
-			--arg 'content' "$content" \
-			'.messages += [{"role": $role, "content": $content}]' \
-		<"$file" \
-		| sponge -- "$file"
-	}
 
 	local role='' content=''
 
@@ -39,7 +43,7 @@ build_request() {
 	while IFS= read -r s; do
 		if [[ "$s" =~ ^[^[:blank:]] ]]; then
 			if [[ "$role" ]]; then
-				_add_message "$role" "$content"
+				add_message "$file" "$role" "$content"
 				content=''
 			fi
 			read -r role <<<"$s"
@@ -50,7 +54,7 @@ build_request() {
 	done
 
 	if [[ "$role" ]]; then
-		_add_message "$role" "$content"
+		add_message "$file" "$role" "$content"
 	fi
 }
 
