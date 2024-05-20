@@ -2,15 +2,10 @@
 
 set -o errexit -o nounset -o pipefail
 
-temp="$(mktemp)"
-trap 'rm -- "$temp"' EXIT
+(
+	printf 'user\n\n'
 
-cat >"$temp" <<EOF
-user
-
-$(sed 's/^/\t/' /dev/stdin)
-EOF
-
-chatgpt "$@" \
-<"$temp" \
+	sed 's/^/\t/' /dev/stdin
+) \
+| chatgpt "$@" \
 | sed '1,3d;s/^\t//'
