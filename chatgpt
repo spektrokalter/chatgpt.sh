@@ -2,6 +2,10 @@
 
 set -o errexit -o nounset -o pipefail
 
+say() {
+	printf '%s\n' "$*" >&2
+}
+
 die() {
 	printf '%s\n' "$*" >&2
 	exit 1
@@ -54,7 +58,7 @@ build_request() {
 # configuration
 #
 
-CURL=(/usr/bin/curl --silent --fail)
+CURL=(/usr/bin/curl --silent --fail-with-body)
 
 if rc="$HOME/.chatgptrc"; [[ -f "$rc" && -r "$rc" ]]; then
 	source -- "$rc"
@@ -119,7 +123,11 @@ build_request "$request" "$TEMPERATURE"
 	-H "Authorization: Bearer $OPENAI_API_KEY" \
 	--json "@$request" \
 	'https://api.openai.com/v1/chat/completions' \
->"$response"
+>"$response" \
+|| {
+	say "request failed"
+	die "$(cat -- "$response")"
+}
 
 #
 # print the response
