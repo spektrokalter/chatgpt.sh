@@ -2,16 +2,13 @@
 
 set -o errexit -o nounset -o pipefail
 
-build_request() {
-	local file
-	file="$(mktemp)"
+die() {
+	printf '%s\n' "$*" >&2
+	exit 1
+}
 
-	cat >"$file" <<-'EOF'
-		{
-			"model": "gpt-3.5-turbo",
-			"n": 1
-		}
-	EOF
+build_request() {
+	local file="$1"
 
 	_add_message() {
 		local role="$1" content="$2"
@@ -43,10 +40,11 @@ build_request() {
 	if [[ "$role" ]]; then
 		_add_message "$role" "$content"
 	fi
-
-	cat -- "$file"
-	rm -- "$file"
 }
+
+#
+# configuration
+#
 
 CURL=(/usr/bin/curl --silent --fail)
 
@@ -54,16 +52,52 @@ if rc="$HOME/.chatgptrc"; [[ -f "$rc" && -r "$rc" ]]; then
 	source -- "$rc"
 fi
 
-request="$(mktemp)" response="$(mktemp)"
-trap 'rm -- "$request" "$response"' EXIT
+#
+# resource cleanup
+#
 
-build_request >"$request"
+cleanup_files=()
+trap 'rm -f -- "${cleanup_files[@]}"' EXIT
+
+#
+# command-line args
+#
+
+if (( $# < 1 )); then
+	die 'invalid usage'
+fi
+
+#
+# handle base_request
+#
+
+base_request="$(mktemp)"
+cleanup_files+=("$base_request")
+
+if ! "$HOME/.chatgpt.d/$1" >"$base_request"; then
+	die 'base request is broken'
+fi
+
+#
+# build the real request and send it
+#
+
+request="$(mktemp)" response="$(mktemp)"
+cleanup_files+=("$request" "$response")
+
+cat -- "$base_request" >"$request"
+
+build_request "$request"
 
 "${CURL[@]}" \
 	-H "Authorization: Bearer $OPENAI_API_KEY" \
 	--json "@$request" \
 	'https://api.openai.com/v1/chat/completions' \
 >"$response"
+
+#
+# print the response
+#
 
 printf '\n'
 

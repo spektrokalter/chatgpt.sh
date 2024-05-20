@@ -1,0 +1,13 @@
+#!/bin/bash
+
+cat <<-EOF
+	{
+	  "model": "gpt-3.5-turbo",
+	  "messages": [
+	    {
+	      "role": "system",
+	      "content": "You are ChatGPT, a large language model trained by OpenAI, based on the GPT-3.5 architecture.\nKnowledge cutoff: 2022-01\nCurrent date: $(date '+%F')"
+	    }
+	  ]
+	}
+EOF

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+cat <<-EOF
+	{
+	  "model": "gpt-3.5-turbo"
+	}
+EOF
