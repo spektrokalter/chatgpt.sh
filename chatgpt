@@ -8,7 +8,15 @@ die() {
 }
 
 build_request() {
-	local file="$1"
+	local file="$1" temperature="$2"
+
+	if [[ "$temperature" ]]; then
+		jq \
+			--arg 'temperature' "$temperature" \
+			'.temperature = ($temperature|tonumber)' \
+		<"$file" \
+		| sponge -- "$file"
+	fi
 
 	_add_message() {
 		local role="$1" content="$2"
@@ -63,6 +71,24 @@ trap 'rm -f -- "${cleanup_files[@]}"' EXIT
 # command-line args
 #
 
+TEMPERATURE=
+
+while true; do
+	case "$1" in
+	-temperature)
+		TEMPERATURE="$2"
+		shift 2
+		;;
+	'--')
+		shift
+		break
+		;;
+	*)
+		break
+		;;
+	esac
+done
+
 if (( $# < 1 )); then
 	die 'invalid usage'
 fi
@@ -87,7 +113,7 @@ cleanup_files+=("$request" "$response")
 
 cat -- "$base_request" >"$request"
 
-build_request "$request"
+build_request "$request" "$TEMPERATURE"
 
 "${CURL[@]}" \
 	-H "Authorization: Bearer $OPENAI_API_KEY" \
